@@ -20,6 +20,73 @@ from diffusion_policy_3d.common.pytorch_util import dict_apply
 from diffusion_policy_3d.common.model_util import print_params
 from diffusion_policy_3d.model.vision.pointnet_extractor import DP3Encoder
 
+# =============================================================================
+import os
+import torch
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from sklearn.decomposition import PCA
+from datetime import datetime
+
+def show_pointcloud_raw_and_pca_colored(
+    points_tensor, title_prefix="PointCloud", 
+    save_dir="/home/lumina/lumina/Jiawei/RoboTwin/policy/DP3/PointCloud_Vis"):
+    """
+    显示和保存：
+    - 原始灰色点云图
+    - PCA上色的点云图
+
+    参数:
+        points_tensor: torch.Tensor, shape [B, N, 3] 或 [N, 3]
+        title_prefix: 图标题前缀
+        save_dir: 图像保存路径
+    """
+    print("🚩到达点0")
+    os.makedirs(save_dir, exist_ok=True)
+
+    if points_tensor.ndim == 3:
+        points_tensor = points_tensor[0]  # 只展示第一个样本
+
+    points_np = points_tensor.detach().cpu().numpy()  # [N, 3]
+
+    fig = plt.figure(figsize=(12, 6))
+
+    # ================= 图1：灰色点云 =================
+    ax1 = fig.add_subplot(121, projection='3d')
+    ax1.scatter(points_np[:, 0], points_np[:, 1], points_np[:, 2], c='gray', s=2)
+    ax1.set_title(f"{title_prefix} - Raw XYZ")
+    ax1.set_xlabel('X'); ax1.set_ylabel('Y'); ax1.set_zlabel('Z')
+
+    # ================= 图2：PCA RGB点云 =================
+    pca = PCA(n_components=3)
+    pca_result = pca.fit_transform(points_np)  # [N, 3]
+    rgb = (pca_result - pca_result.min(axis=0)) / (pca_result.max(axis=0) - pca_result.min(axis=0) + 1e-8)
+
+    ax2 = fig.add_subplot(122, projection='3d')
+    ax2.scatter(points_np[:, 0], points_np[:, 1], points_np[:, 2], c=rgb, s=2)
+    ax2.set_title(f"{title_prefix} - PCA Colored")
+    ax2.set_xlabel('X'); ax2.set_ylabel('Y'); ax2.set_zlabel('Z')
+
+    # ================= 保存图片 =================
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{title_prefix}_{timestamp}.png".replace(" ", "_").replace("🎯", "")
+    save_path = os.path.join(save_dir, filename)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300)
+    plt.close('all')  # ✅ 添加这行
+    
+    # 强制确认写入成功
+    if os.path.exists(save_path):
+        print(f"[✅ 点云图已成功保存] -> {save_path}")
+    else:
+        print(f"[❌ 图像保存失败] -> {save_path} 不存在")
+
+    # 尽量避免直接在pdb前做密集I/O
+    time.sleep(1)  # 等待写盘完成
+# =============================================================================
 
 class DP3(BasePolicy):
 
@@ -198,6 +265,13 @@ class DP3(BasePolicy):
             nobs["point_cloud"] = nobs["point_cloud"][..., :3]
         this_n_point_cloud = nobs["point_cloud"]
 
+        # pdb.set_trace()
+        # ✅ 显示当前 batch 的第一帧点云（展示 crop + FPS 后的状态）
+        print("🔥 PointCloud 可视化函数调用了！shape =", this_n_point_cloud.shape)
+        this_n_point_cloud = nobs["point_cloud"][:, 0]  # shape: [B, N, 3]
+        show_pointcloud_raw_and_pca_colored(this_n_point_cloud, title_prefix="🎯裁剪+FPS后点云")
+        pdb.set_trace()
+        
         value = next(iter(nobs.values()))
         B, To = value.shape[:2]
         T = self.horizon
@@ -259,7 +333,7 @@ class DP3(BasePolicy):
             "action": action,
             "action_pred": action_pred,
         }
-
+        
         return result
 
     # ========= training  ============

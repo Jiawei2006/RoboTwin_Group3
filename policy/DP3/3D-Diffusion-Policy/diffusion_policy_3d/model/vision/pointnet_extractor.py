@@ -1,3 +1,45 @@
+# =============================================================================
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from sklearn.decomposition import PCA
+
+def show_pointcloud_raw_and_pca_colored(points_tensor, title_prefix="PointCloud"):
+    """
+    points_tensor: shape [B, N, 3] or [N, 3], torch.Tensor
+    """
+    if points_tensor.ndim == 3:
+        points_tensor = points_tensor[0]  # 只展示第一个样本
+    
+    points_np = points_tensor.detach().cpu().numpy()  # [N, 3]
+
+    # =======================
+    # 🎯 图1：原始灰色点云
+    # =======================
+    fig = plt.figure(figsize=(12, 6))
+    ax1 = fig.add_subplot(121, projection='3d')
+    ax1.scatter(points_np[:, 0], points_np[:, 1], points_np[:, 2], c='gray', s=2)
+    ax1.set_title(f"{title_prefix} - Raw XYZ")
+    ax1.set_xlabel('X'); ax1.set_ylabel('Y'); ax1.set_zlabel('Z')
+
+    # =======================
+    # 🎯 图2：PCA上色点云
+    # =======================
+    pca = PCA(n_components=3)
+    pca_result = pca.fit_transform(points_np)  # shape [N, 3]
+
+    # 将主成分每一维归一化到 [0, 1]，作为 RGB 颜色
+    rgb = (pca_result - pca_result.min(axis=0)) / (pca_result.max(axis=0) - pca_result.min(axis=0) + 1e-8)
+
+    ax2 = fig.add_subplot(122, projection='3d')
+    ax2.scatter(points_np[:, 0], points_np[:, 1], points_np[:, 2], c=rgb, s=2)
+    ax2.set_title(f"{title_prefix} - PCA Colored")
+    ax2.set_xlabel('X'); ax2.set_ylabel('Y'); ax2.set_zlabel('Z')
+
+    plt.tight_layout()
+    plt.show()
+# =============================================================================
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -250,6 +292,9 @@ class DP3Encoder(nn.Module):
 
     def forward(self, observations: Dict) -> torch.Tensor:
         points = observations[self.point_cloud_key]
+        # plt.savefig(f"{title_prefix.replace(' ', '_')}.png")
+        # if points.shape[-1] == 3:
+        #     show_pointcloud_raw_and_pca_colored(points, title_prefix="Cropped + FPS PointCloud")
         assert len(points.shape) == 3, cprint(f"point cloud shape: {points.shape}, length should be 3", "red")
         if self.use_imagined_robot:
             img_points = observations[self.imagination_key][..., :points.shape[-1]]  # align the last dim
