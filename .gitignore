@@ -26,3 +26,4 @@ envs/curobo/*
 
 /*.json*
 /*.txt
+CLIP/
