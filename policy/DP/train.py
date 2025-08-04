@@ -61,10 +61,21 @@ def main(cfg: OmegaConf):
     ]
 
     cls = hydra.utils.get_class(cfg._target_)
-    workspace: BaseWorkspace = cls(cfg)
+    # import pdb; pdb.set_trace()
+    workspace: BaseWorkspace = cls(cfg) 
     print(cfg.task.dataset.zarr_path, cfg.task_name)
+    # import pdb; pdb.set_trace()
     workspace.run()
+'''
+p cfg.policy._target 
+'diffusion_policy.policy.diffusion_unet_image_policy.DiffusionUnetImagePolicy'
 
+p cfg.policy.obs_encoder._target 
+'diffusion_policy.model.vision.multi_image_obs_encoder.MultiImageObsEncoder'
+
+p cfg.policy.obs_encoder.rgb_model.name 
+'resnet18'
+'''
 
 if __name__ == "__main__":
     main()

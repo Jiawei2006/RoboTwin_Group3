@@ -37,8 +37,8 @@ policy:
     _target_: diffusion_policy.model.vision.multi_image_obs_encoder.MultiImageObsEncoder
     shape_meta: ${shape_meta}
     rgb_model:
-      _target_: diffusion_policy.model.vision.model_getter.get_resnet
-      name: resnet18
+      _target_: diffusion_policy.model.vision.model_getter.get_resnet # ResNet18在这里
+      name: resnet18 # 在这里
       weights: null
     resize_shape: null
     crop_shape: null
@@ -73,14 +73,16 @@ ema:
   max_value: 0.9999
 
 dataloader:
-  batch_size: 128
+  # batch_size: 128
+  batch_size: 64
   num_workers: 0
   shuffle: True
   pin_memory: True
   persistent_workers: False
 
 val_dataloader:
-  batch_size: 128
+  # batch_size: 128
+  batch_size: 64
   num_workers: 0
   shuffle: False
   pin_memory: True

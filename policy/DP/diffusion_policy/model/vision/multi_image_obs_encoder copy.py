@@ -8,8 +8,8 @@ from typing import Dict, Tuple, Union
 from diffusion_policy.model.vision.crop_randomizer import CropRandomizer
 from diffusion_policy.model.common.module_attr_mixin import ModuleAttrMixin
 from diffusion_policy.common.pytorch_util import dict_apply, replace_submodules
-# from diffusion_policy.model.custom.CNN_6_to_3 import CNN_6_to_3
-# from diffusion_policy.model.custom.split_normalize import SplitNormalize
+from diffusion_policy.model.custom.CNN_6_to_3 import CNN_6_to_3
+from diffusion_policy.model.custom.split_normalize import SplitNormalize
 
 
 # ========================== 多模态图像观察编码器类 ==========================
@@ -91,7 +91,16 @@ class MultiImageObsEncoder(ModuleAttrMixin):
                                 num_channels=x.num_features,
                             ),
                         )
-                    key_model_map[key] = this_model
+
+
+                # # ========== ✅ [新增] 如果输入为6通道，加入CNN_6_to_3 ==========
+                #     if shape[0] == 6:
+                #         print(f"[INFO] key '{key}' has 6 input channels, applying CNN_6_to_3 before model.")
+                #         cnn_6to3 = CNN_6_to_3()
+                #         this_model = nn.Sequential(cnn_6to3, this_model)
+                #     key_shape_map[key] = shape
+                #     print(f"[CHECK] key: {key}, expected shape: {shape}")
+                #     key_model_map[key] = this_model
 
                 # configure resize
                 input_shape = shape
@@ -213,10 +222,23 @@ class MultiImageObsEncoder(ModuleAttrMixin):
                     assert batch_size == img.shape[0]
                 
                 print(f"[DEBUG] Checking key: {key}")
-                print(f"[DEBUG] - {img.shape} {img.shape[1:]}")
+                print(f"[DEBUG] img shape: {img.shape} {img.shape[1:]}")
                 print(f"[DEBUG] self.key_shape_map[key]: {self.key_shape_map[key]}")
-                # pdb.set_trace()
-                assert img.shape[1:] == self.key_shape_map[key]
+
+                expected_shape = self.key_shape_map[key]
+                actual_shape = img.shape[1:]
+
+                # ====== 新增逻辑：允许6通道输入通过 CNN_6_to_3 变为3通道 ======
+                if actual_shape != expected_shape:
+                    if actual_shape[0] == 6 and expected_shape[0] == 3:
+                        print(f"[INFO] (Bypass) Got 6-channel input, expecting 3-channel after CNN_6_to_3.")
+                        # 允许继续执行，不 raise
+                    else:
+                        raise ValueError(
+                            f"[ERROR] Shape mismatch for key '{key}': "
+                            f"got {actual_shape}, expected {expected_shape}"
+                        )
+                # =========================================================
 
                 img = self.key_transform_map[key](img)  # Resize / Crop / Normalize
                 feature = self.key_model_map[key](img)  # CNN_6_to_3 + ResNet or just ResNet

@@ -42,8 +42,17 @@ class RobotWorkspace(BaseWorkspace):
         random.seed(seed)
 
         # configure model
-        self.model: DiffusionUnetImagePolicy = hydra.utils.instantiate(cfg.policy)
-
+        self.model: DiffusionUnetImagePolicy = hydra.utils.instantiate(cfg.policy) 
+        # 调用DiffusionUnetImagePolicy
+        
+        # ✅ 添加关键调试信息打印
+        print("[DEBUG] policy type:", cfg.policy._target_)
+        print("[DEBUG] obs_encoder type:", cfg.policy.obs_encoder._target_)
+        print("[DEBUG] rgb_model:", cfg.policy.obs_encoder.rgb_model.name)
+        # [DEBUG] policy type: diffusion_policy.policy.diffusion_unet_image_policy.DiffusionUnetImagePolicy
+        # [DEBUG] obs_encoder type: diffusion_policy.model.vision.multi_image_obs_encoder.MultiImageObsEncoder
+        # [DEBUG] rgb_model: resnet18
+        
         self.ema_model: DiffusionUnetImagePolicy = None
         if cfg.training.use_ema:
             self.ema_model = copy.deepcopy(self.model)
@@ -334,15 +343,36 @@ def create_dataloader(
     return dataloader
 
 
+import pathlib
+import hydra
+from omegaconf import OmegaConf
+
+# ✅ 提前构建路径变量
+CONFIG_PATH = str(pathlib.Path(__file__).parent.parent.joinpath("config"))
+CONFIG_NAME = pathlib.Path(__file__).stem
+
+# ✅ 打印你关心的调试信息（路径）
+print("[DEBUG] 加载配置路径 config_path:", CONFIG_PATH)
+print("[DEBUG] 加载配置文件 config_name:", CONFIG_NAME)
+
+# ✅ 使用变量传入装饰器
 @hydra.main(
     version_base=None,
-    config_path=str(pathlib.Path(__file__).parent.parent.joinpath("config")),
-    config_name=pathlib.Path(__file__).stem,
+    config_path=CONFIG_PATH,
+    config_name=CONFIG_NAME,
 )
 def main(cfg):
+    import pdb; pdb.set_trace()
+    # ✅ 打印 cfg 内容以确认来源
+    print("[DEBUG] Hydra 实际加载的 cfg 内容如下：")
+    print(OmegaConf.to_yaml(cfg))
+
+    # 继续你原本的工作逻辑
+    from diffusion_policy.workspace.robotworkspace import RobotWorkspace
     workspace = RobotWorkspace(cfg)
     workspace.run()
 
 
 if __name__ == "__main__":
     main()
+

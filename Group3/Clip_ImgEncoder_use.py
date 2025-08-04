@@ -11,7 +11,7 @@ import torch.nn.functional as F
 
 class CLIP_encoder:
     def __init__(self, model_name="ViT-L/14@336px", device=None):
-        self.device = device or torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+        self.device = device or torch.device("cuda:6" if torch.cuda.is_available() else "cpu")
         print(f"[INFO] Using device: {self.device}")
 
         self.model_dir = "/home/lumina/lumina/Jiawei/RoboTwin/Group3/models"
@@ -70,35 +70,32 @@ class CLIP_encoder:
             print(f"[ERROR] 无法保存图像，张量的形状不符合要求: {tensor.shape}")
 
     def show(self, image_path, save_path1):
-        feat = self.Vit_336px_CLIPFeatureExtractor(image_path).detach().cpu().numpy()
+        feat = self.Vit_336px_CLIPFeatureExtractor(image_path).detach().cpu()
         print(f"[DEBUG] 原始特征 shape: {feat.shape}")  # (1, 1024, 24, 24)
-
-        feat = feat.reshape(1024, -1).T  # → shape: (576, 1024)
-        print(f"[DEBUG] PCA前特征 shape: {feat.shape}")
-
+        # 双线性插值到 [1, 1024, 240, 320]
+        feat_resized = F.interpolate(feat, size=(240, 320), mode='bilinear', align_corners=False)
+        
+        feat_resized = feat_resized.squeeze(0).numpy() # [1024, 240, 320]
+        print(f"[DEBUG] 插值后的特征 shape: {feat_resized.shape}")
+        C, H, W = feat_resized.shape  # [1024, 240, 320]
+        # 展平空间维度，准备做 PCA：[H*W, C]
+        feat_flat = feat_resized.reshape(C, -1).T  # [76800, 1024]
+        
         pca = PCA(n_components=3)
-        feat_rgb = pca.fit_transform(feat)  # → shape: (576, 3)
-        print(f"[DEBUG] PCA后特征 shape: {feat_rgb.shape}")
-
-        rgb = (feat_rgb - feat_rgb.min()) / (np.ptp(feat_rgb, axis=0) + 1e-8)
-        rgb_img = rgb.reshape(24, 24, 3)  # → shape: (24, 24, 3)
-        print(f"[Info] rgb_img RGB图 shape: {rgb_img.shape}")
-        self.save_image_from_tensor(rgb_img,save_path2)
-
-        # Step 4: 插值到 (64, 64, 3)
-        rgb_tensor = torch.tensor(rgb_img).permute(2, 0, 1).unsqueeze(0).float()  # [1, 3, 24, 24]
-        rgb_resized = F.interpolate(rgb_tensor, size=(224, 224), mode='bilinear', align_corners=False)
-        rgb_resized = rgb_resized.squeeze(0).permute(1, 2, 0).cpu().numpy()  # [64, 64, 3]
-        self.save_image_from_tensor(rgb_resized, save_path1)
-        print(f"[Info] rgb_resized RGB图 shape: {rgb_resized.shape}")
+        feat_resized_rgb = pca.fit_transform(feat_flat) # [76800, 3]
+        feat_resized_rgb = feat_resized_rgb.T.reshape(3, H, W) # 转换为 [3, 240, 320]
+        
+        # 转置为 [H, W, C] → [240, 320, 3]
+        feat_resized_rgb = np.transpose(feat_resized_rgb, (1, 2, 0))
+        self.save_image_from_tensor(feat_resized_rgb, save_path1)
 
 
 # ========== 示例调用 ==========
 
-if __name__ == "__main__":
-    encoder = CLIP_encoder()
-    img_path = "/home/lumina/lumina/Jiawei/extracted_images/Extracted_img_front_camera_random/right_camera_frame000.jpg"
-    save_path1 = "/home/lumina/lumina/Jiawei/extracted_images/End/rgb_feature_map_resized.jpg"
-    save_path2 = "/home/lumina/lumina/Jiawei/extracted_images/End/rgb_feature_map.jpg"
-    encoder.show(img_path, save_path1)
+# if __name__ == "__main__":
+#     encoder = CLIP_encoder()
+#     img_path = "/home/lumina/lumina/Jiawei/extracted_images/Extracted_img_front_camera_random/right_camera_frame000.jpg"
+#     save_path1 = "/home/lumina/lumina/Jiawei/extracted_images/End/rgb_feature_map_240320.jpg"
+#     save_path2 = "/home/lumina/lumina/Jiawei/extracted_images/End/rgb_feature_map.jpg"
+#     encoder.show(img_path, save_path1)
     
