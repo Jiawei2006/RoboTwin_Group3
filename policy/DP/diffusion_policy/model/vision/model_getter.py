@@ -43,7 +43,7 @@ import os
 import sys
 
 # 添加CLIP_encoder的路径
-sys.path.append("/home/lumina/lumina/Jiawei/RoboTwin/Group3")
+sys.path.append("/data0/lumina/Jiawei/RoboTwin/Group3")
 from extract_ob_B import CLIP_encoder
 
 def get_resnet(name, weights=None, **kwargs):

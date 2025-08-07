@@ -9,8 +9,8 @@ viewer_show.*
 eval_video/
 task_config/
 
-# eval result
-eval_result/
+# # eval result
+# eval_result/
 
 # Code Generation
 assets/*
